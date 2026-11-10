@@ -1,4 +1,4 @@
-import { stripe } from "@/lib/stripe";
+import { stripe, platformFee } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Safe to call many times for the same session (webhook + success page).
@@ -6,7 +6,7 @@ export async function fulfillCheckout(sessionId) {
   const session = await stripe.checkout.sessions.retrieve(sessionId);
   if (session.payment_status !== "paid") return { ok: false, session };
 
-  const { prompt_id, buyer_id } = session.metadata || {};
+  const { prompt_id, buyer_id, payout } = session.metadata || {};
   if (!prompt_id || !buyer_id) return { ok: false, session };
 
   const admin = createAdminClient();
@@ -15,6 +15,8 @@ export async function fulfillCheckout(sessionId) {
       prompt_id,
       buyer_id,
       amount_cents: session.amount_total,
+      seller_payout_cents: session.amount_total - platformFee(session.amount_total),
+      payout_status: payout === "manual" ? "pending" : "auto",
       stripe_session_id: session.id,
     },
     { onConflict: "stripe_session_id", ignoreDuplicates: true }

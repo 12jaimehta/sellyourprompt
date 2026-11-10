@@ -154,3 +154,54 @@ drop policy if exists "Users upload to own folder" on storage.objects;
 create policy "Users upload to own folder" on storage.objects
   for insert to authenticated
   with check (bucket_id = 'previews' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- MANUAL PAYOUTS (bank / UPI / PayPal for sellers without Stripe) -------
+alter table public.profiles add column if not exists manual_payout boolean not null default false;
+
+alter table public.purchases add column if not exists seller_payout_cents integer not null default 0;
+alter table public.purchases add column if not exists payout_status text not null default 'auto'
+  check (payout_status in ('auto', 'pending', 'paid'));
+alter table public.purchases add column if not exists paid_out_at timestamptz;
+
+-- Private: only the seller (and the server) can read these.
+create table if not exists public.payout_details (
+  user_id uuid primary key references public.profiles on delete cascade,
+  method text not null check (method in ('bank', 'upi', 'paypal')),
+  account_name text not null,
+  country text,
+  bank_name text,
+  account_number text,
+  routing_code text,
+  upi_id text,
+  paypal_email text,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.payout_details enable row level security;
+
+drop policy if exists "Owner reads payout details" on public.payout_details;
+create policy "Owner reads payout details" on public.payout_details
+  for select using (auth.uid() = user_id);
+drop policy if exists "Owner inserts payout details" on public.payout_details;
+create policy "Owner inserts payout details" on public.payout_details
+  for insert with check (auth.uid() = user_id);
+drop policy if exists "Owner updates payout details" on public.payout_details;
+create policy "Owner updates payout details" on public.payout_details
+  for update using (auth.uid() = user_id);
+
+create or replace function public.sync_manual_payout()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'DELETE' then
+    update public.profiles set manual_payout = false where id = old.user_id;
+    return old;
+  end if;
+  update public.profiles set manual_payout = true where id = new.user_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_payout_details_change on public.payout_details;
+create trigger on_payout_details_change
+  after insert or update or delete on public.payout_details
+  for each row execute function public.sync_manual_payout();

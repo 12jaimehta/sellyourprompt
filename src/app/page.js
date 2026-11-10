@@ -32,9 +32,9 @@ export default async function Home({ searchParams }) {
   return (
     <>
       <section className="py-16 text-center sm:py-24">
-        <p className="mx-auto mb-5 w-fit rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-600">
+        {/* <p className="mx-auto mb-5 w-fit rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-600">
           See the result first. Buy the prompt after.
-        </p>
+        </p> */}
         <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-tight sm:text-6xl">
           Buy and sell AI prompts that actually work.
         </h1>

@@ -14,3 +14,5 @@ drop function if exists public.bump_prompt_stats() cascade;
 
 drop policy if exists "Anyone can view previews" on storage.objects;
 drop policy if exists "Users upload to own folder" on storage.objects;
+drop table if exists public.payout_details cascade;
+drop function if exists public.sync_manual_payout() cascade;

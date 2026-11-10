@@ -14,7 +14,7 @@ export default async function Dashboard() {
 
   let { data: profile } = await supabase
     .from("profiles")
-    .select("username, stripe_account_id, stripe_onboarded")
+    .select("username, stripe_account_id, stripe_onboarded, manual_payout")
     .eq("id", user.id)
     .single();
 
@@ -30,7 +30,7 @@ export default async function Dashboard() {
     }
   }
 
-  const [{ data: myPrompts }, { data: purchases }] = await Promise.all([
+  const [{ data: myPrompts }, { data: purchases }, { data: mySales }] = await Promise.all([
     supabase
       .from("prompts")
       .select("id, title, price_cents, sales_count, revenue_cents, preview_image_url")
@@ -41,12 +41,18 @@ export default async function Dashboard() {
       .select("id, created_at, prompts(id, title, model, prompt_secrets(content))")
       .eq("buyer_id", user.id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("purchases")
+      .select("seller_payout_cents, payout_status, prompts!inner(seller_id)")
+      .eq("prompts.seller_id", user.id),
   ]);
 
-  const feePercent = Number(process.env.PLATFORM_FEE_PERCENT ?? 10);
   const totalSales = (myPrompts || []).reduce((s, p) => s + p.sales_count, 0);
-  const totalRevenue = (myPrompts || []).reduce((s, p) => s + p.revenue_cents, 0);
-  const yourEarnings = Math.round((totalRevenue * (100 - feePercent)) / 100);
+  const yourEarnings = (mySales || []).reduce((s, p) => s + p.seller_payout_cents, 0);
+  const pendingPayout = (mySales || [])
+    .filter((p) => p.payout_status === "pending")
+    .reduce((s, p) => s + p.seller_payout_cents, 0);
+  const canSell = profile?.stripe_onboarded || profile?.manual_payout;
 
   return (
     <div className="space-y-12 py-12">
@@ -55,24 +61,24 @@ export default async function Dashboard() {
           <p className="text-sm text-neutral-500">Hey @{profile?.username}</p>
           <h1 className="text-3xl font-semibold tracking-tight">Your dashboard</h1>
         </div>
-        {profile?.stripe_onboarded ? (
-          <form action="/api/connect/dashboard" method="post">
-            <button className="btn-light">View payouts on Stripe ↗</button>
-          </form>
-        ) : (
-          <form action="/api/connect/onboard" method="post">
-            <button className="btn">
-              {profile?.stripe_account_id ? "Finish Stripe setup" : "Connect Stripe to sell"}
-            </button>
-          </form>
-        )}
+        <div className="flex gap-2">
+          {profile?.stripe_onboarded && (
+            <form action="/api/connect/dashboard" method="post">
+              <button className="btn-light">View payouts on Stripe ↗</button>
+            </form>
+          )}
+          <Link href="/payouts" className={canSell ? "btn-light" : "btn"}>
+            {canSell ? "Payout settings" : "Set up payouts to sell"}
+          </Link>
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className={`grid gap-4 ${profile?.manual_payout || pendingPayout > 0 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
         {[
           ["Prompts listed", myPrompts?.length || 0],
           ["Total sales", totalSales],
           ["You earned", money(yourEarnings)],
+          ...(profile?.manual_payout || pendingPayout > 0 ? [["Pending payout", money(pendingPayout)]] : []),
         ].map(([label, value]) => (
           <div key={label} className="card p-5">
             <p className="text-sm text-neutral-500">{label}</p>

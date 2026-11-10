@@ -10,6 +10,8 @@ Built with Next.js (JavaScript), Supabase (database, auth, storage) and Stripe C
 2. A buyer pays with Stripe Checkout.
 3. Stripe sends the price minus the platform fee (`PLATFORM_FEE_PERCENT`, default 10%) to the seller. The platform keeps the fee and pays Stripe's processing fee out of it.
 
+Sellers without Stripe (common in India and many other countries) can choose **Bank, UPI or PayPal** instead. Buyers still pay by card through Stripe, but the money stays in the platform's Stripe account and the sale is marked "pending payout". Open `/admin/payouts` (only for emails in `ADMIN_EMAILS`) to see who you owe and their details, send the money, then click **Mark as paid**.
+
 ## Setup (about 10 minutes)
 
 ### 1. Supabase

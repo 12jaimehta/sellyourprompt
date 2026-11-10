@@ -11,7 +11,7 @@ export default async function PromptPage({ params }) {
 
   const { data: prompt } = await supabase
     .from("prompts")
-    .select("*, profiles(username, stripe_onboarded)")
+    .select("*, profiles(username, stripe_onboarded, manual_payout)")
     .eq("id", id)
     .maybeSingle();
 
@@ -23,7 +23,7 @@ export default async function PromptPage({ params }) {
     : { data: null };
 
   const isOwner = user?.id === prompt.seller_id;
-  const canBuy = prompt.profiles?.stripe_onboarded;
+  const canBuy = prompt.profiles?.stripe_onboarded || prompt.profiles?.manual_payout;
 
   return (
     <div className="grid gap-10 py-10 lg:grid-cols-[1fr_380px]">

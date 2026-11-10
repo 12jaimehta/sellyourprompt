@@ -12,7 +12,7 @@ export async function POST(request) {
 
   const { data: prompt } = await admin
     .from("prompts")
-    .select("id, title, price_cents, seller_id, profiles(stripe_account_id, stripe_onboarded)")
+    .select("id, title, price_cents, seller_id, profiles(stripe_account_id, stripe_onboarded, manual_payout)")
     .eq("id", promptId)
     .single();
 
@@ -22,7 +22,8 @@ export async function POST(request) {
   }
 
   const seller = prompt.profiles;
-  if (!seller?.stripe_account_id || !seller.stripe_onboarded) {
+  const viaStripe = Boolean(seller?.stripe_account_id && seller.stripe_onboarded);
+  if (!viaStripe && !seller?.manual_payout) {
     return NextResponse.json({ error: "This seller can't accept payments yet." }, { status: 400 });
   }
 
@@ -47,11 +48,14 @@ export async function POST(request) {
         },
       },
     ],
-    payment_intent_data: {
-      application_fee_amount: platformFee(prompt.price_cents),
-      transfer_data: { destination: seller.stripe_account_id },
-    },
-    metadata: { prompt_id: prompt.id, buyer_id: user.id },
+    // Manual-payout sellers: the platform keeps the money and pays them out later.
+    payment_intent_data: viaStripe
+      ? {
+          application_fee_amount: platformFee(prompt.price_cents),
+          transfer_data: { destination: seller.stripe_account_id },
+        }
+      : undefined,
+    metadata: { prompt_id: prompt.id, buyer_id: user.id, payout: viaStripe ? "stripe" : "manual" },
     success_url: `${siteUrl()}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${siteUrl()}/prompt/${prompt.id}`,
   });
