@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { COUNTRIES } from "@/lib/format";
 
 const METHODS = [
   { id: "bank", label: "Bank account" },
@@ -93,7 +94,14 @@ export default function PayoutChoice({ userId, existing, next = "/sell" }) {
             </div>
             <div>
               <label className="label">Country</label>
-              <input name="country" required defaultValue={existing?.country || ""} className="input" placeholder="India" />
+              <select name="country" required defaultValue={existing?.country || ""} className="input">
+                <option value="" disabled>
+                  Select your country
+                </option>
+                {COUNTRIES.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
             </div>
           </div>
 
