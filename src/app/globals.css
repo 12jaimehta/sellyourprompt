@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-neutral-50 text-neutral-900 antialiased;
+}
+
+@layer components {
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50;
+}
+.btn-light {
+  @apply inline-flex items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-5 py-2.5 text-sm font-medium transition hover:border-neutral-400;
+}
+.input {
+  @apply w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-neutral-900;
+}
+.label {
+  @apply mb-1.5 block text-sm font-medium text-neutral-700;
+}
+.card {
+  @apply rounded-2xl border border-neutral-200 bg-white;
+}
+}
