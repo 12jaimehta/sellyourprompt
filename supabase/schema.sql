@@ -1,4 +1,4 @@
--- Run this whole file once in Supabase -> SQL Editor.
+-- Run this whole file in Supabase -> SQL Editor. Safe to run again.
 
 -- PROFILES -------------------------------------------------------------
 create table if not exists public.profiles (
@@ -11,6 +11,7 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Profiles are public" on public.profiles;
 create policy "Profiles are public" on public.profiles
   for select using (true);
 
@@ -49,12 +50,16 @@ create table if not exists public.prompts (
 
 alter table public.prompts enable row level security;
 
+drop policy if exists "Prompts are public" on public.prompts;
 create policy "Prompts are public" on public.prompts
   for select using (true);
+drop policy if exists "Sellers insert own prompts" on public.prompts;
 create policy "Sellers insert own prompts" on public.prompts
   for insert with check (auth.uid() = seller_id);
+drop policy if exists "Sellers update own prompts" on public.prompts;
 create policy "Sellers update own prompts" on public.prompts
   for update using (auth.uid() = seller_id);
+drop policy if exists "Sellers delete own prompts" on public.prompts;
 create policy "Sellers delete own prompts" on public.prompts
   for delete using (auth.uid() = seller_id);
 
@@ -89,6 +94,7 @@ create table if not exists public.purchases (
 
 alter table public.purchases enable row level security;
 
+drop policy if exists "Buyers and sellers see purchases" on public.purchases;
 create policy "Buyers and sellers see purchases" on public.purchases
   for select using (
     auth.uid() = buyer_id
@@ -119,15 +125,18 @@ create table if not exists public.prompt_secrets (
 
 alter table public.prompt_secrets enable row level security;
 
+drop policy if exists "Seller or buyer can read prompt" on public.prompt_secrets;
 create policy "Seller or buyer can read prompt" on public.prompt_secrets
   for select using (
     exists (select 1 from public.prompts p where p.id = prompt_id and p.seller_id = auth.uid())
     or exists (select 1 from public.purchases b where b.prompt_id = prompt_secrets.prompt_id and b.buyer_id = auth.uid())
   );
+drop policy if exists "Seller writes own prompt" on public.prompt_secrets;
 create policy "Seller writes own prompt" on public.prompt_secrets
   for insert with check (
     exists (select 1 from public.prompts p where p.id = prompt_id and p.seller_id = auth.uid())
   );
+drop policy if exists "Seller updates own prompt" on public.prompt_secrets;
 create policy "Seller updates own prompt" on public.prompt_secrets
   for update using (
     exists (select 1 from public.prompts p where p.id = prompt_id and p.seller_id = auth.uid())
@@ -138,8 +147,10 @@ insert into storage.buckets (id, name, public)
 values ('previews', 'previews', true)
 on conflict (id) do nothing;
 
+drop policy if exists "Anyone can view previews" on storage.objects;
 create policy "Anyone can view previews" on storage.objects
   for select using (bucket_id = 'previews');
+drop policy if exists "Users upload to own folder" on storage.objects;
 create policy "Users upload to own folder" on storage.objects
   for insert to authenticated
   with check (bucket_id = 'previews' and (storage.foldername(name))[1] = auth.uid()::text);
